@@ -1,6 +1,6 @@
 {
   	"name": "zunkernel",
-  	"version": "1.0.11",
+  	"version": "1.0.12",
   	"description": "Framework Model-View-Controller that uses sequelize, express, and swig.",
   	"author": {
     	"name": "Asiel Hernandez Valdes",
@@ -35,7 +35,11 @@
 		"express",
 		"nodemailer",
 		"sequelize-auto",
-		"orm"
+		"orm",
+		"postgres",
+		"mysql",
+		"mssql",
+		"https"
 	],
   	"license": "MIT",
   	"main": "index",

@@ -44,19 +44,19 @@ $ npm install --save tedious // MSSQL
 * zun.basedir (Absolute path to the project root)
 * zun.config (Object to storage the global configuration variables's of the framework)
 
-###When you create a bundle, automatically be create gobal configuration variables's of the application and you can call it from any part of it:
+###When you create a bundle, automatically be create global configuration variables's of the application and you can call it from any part of it:
 * zun.bundle_name.config (Give you access to the configuration file of your bundle, you can call it as an object)
 * zun.bundle_name.db (Object of database access and it's a Sequelize object with the file configurations of "config.json" of your bundle. To use, look Sequelize module's docs)
 * zun.bundle_name.render (Object SWIG configuring directly with folder view of the bundle)
 * zun.bundle_name.model.model_name (Access to the created model with sequelize. Are models of type sequelize. To use, look Sequelize module's docs, in the models topic. Example: zun.test.model.User.findAll())
 * zun.bundle_name.email (Object of type createTransport of the nodemailer module. Uses the configuration of the "config.json" file of the bundle. To use, look the nodemailer module configuration)
 
-###Framework gobal functions
+###Framework global functions
 * zun.log (message[,filename,fnCallback]) //Generate a log in the  log folder with the date and the given message
 * zun.execCommand(arrayParams) //Execute framework's command. Example create bundle zun.execCommand(['bundle:create','bundle_name'])
 * zun.on(event_name,fnCallback) //Allow listen some event emitted by the framework
 * zun.emit(event_name,data) //Allow emit a framework's event
-* zun.console(value[,type])//Permite mostrar por consola de comandos. The type parameter can take several values success (default), error, warning.
+* zun.console(value[,type])//Allows display by command console. The type parameter can take several values success (default), error, warning.
 
 ##Commands
 
@@ -154,7 +154,9 @@ zun.on('routing', function (data, next) {
         method:"Method use, post, get , delete etc..",
         bundle:"Bundle name",
         controller:"Controller directory of routing",
-        fn:"Function to execute on the controller"
+        fn:"Function to execute on the controller",
+        req:"Object request express",
+        res:"Object response express"
         }
     */
     next();//Function that allows the call to that route to continue running

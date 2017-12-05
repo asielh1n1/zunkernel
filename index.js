@@ -30,7 +30,8 @@ exports.ZunKernel=function(){
 	this.express=null;
 	//Object access database
 	this.Database=DataBase;
-
+	//Template engine
+	this.swig=swig;
 	//Variable que almacena las configuraciones generales
 	_this.config=null;
 	//Variable global del framework
@@ -46,7 +47,7 @@ exports.ZunKernel=function(){
 				loadModelByBundle();
 				loadRoutingByBundles();
 				//Verifico si esta habilitado https o no
-				if(_this.basedir+this.config.webserver.disabled_https){
+				if(this.config.webserver.disabled_https){
 					this.express.listen(this.config.webserver.http_port,this.config.ip_server,function (){
 						zun.emit('init','Server '+_this.config.ip_server+' running!!\nListen port: '+_this.config.listen_port)
 						console.log('\x1b[32m','Server running!!\nListen port: '+_this.config.webserver.http_port,'\x1b[0m');
@@ -57,7 +58,11 @@ exports.ZunKernel=function(){
 					var certificate = fs.readFileSync(_this.basedir+this.config.webserver.https.crt, 'utf8').toString();
 					var credentials = {key: privateKey, cert: certificate};
 					var httpsServer = https.createServer(credentials, this.express);
-					httpsServer.listen(_this.basedir+this.config.webserver.https.port);
+					httpsServer.listen(this.config.webserver.https.port,function (){
+						zun.emit('init','Server '+_this.config.ip_server+' running https!!\nListen port: '+_this.config.webserver.https.port)
+						console.log('\x1b[32m','Server running https!!\nListen port: '+_this.config.webserver.https.port,'\x1b[0m');
+						_this.log("Server initialized...","system.txt");
+					});
 				}
 				//Evento que se ejecuta cuando se cierra el proceso de node
 				process.on('SIGINT',function(){
