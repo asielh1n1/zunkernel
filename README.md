@@ -40,9 +40,12 @@ $ npm install --save tedious // MSSQL
 ##Features
 
 ###Global framework variables.
-* zun.express (Give access to express module after run application. To use look the module express's docs)
+* zun.express (Give access to express module after run application. To use look the module express's docs http://expressjs.com/es/api.html)
 * zun.basedir (Absolute path to the project root)
+* zun.swig //Access to the swig template engine( See docs http://node-swig.github.io/swig-templates/docs/)
 * zun.config (Object to storage the global configuration variables's of the framework)
+* zun.encrypt (Encrypt a text string with the aes-256 algorithm)
+* zun.encrypt (Decrypt a text string with the aes-256 algorithm)
 
 ###When you create a bundle, automatically be create global configuration variables's of the application and you can call it from any part of it:
 * zun.bundle_name.config (Give you access to the configuration file of your bundle, you can call it as an object)
@@ -99,34 +102,51 @@ File:zunframework/bundle/bundle_name/config/config.json
     "driver": "sequelize:none"//Connection driver. Differents drivers: sequelize:mysql;sequelize:mssql;sequelize:postgres;sequelize:sqlite
 }
 ```
+It is also possible to use references to other bundle or system variables with the following format %% zun.other_bundle.config.database.host %%. Example
+```
+"database": {
+    "name": "databse_name",
+    "host": "%%zun.other_bundle.config.database.host%%",
+    "port": 1433,
+    "username": "%%zun.other_bundle.config.database.username%%",
+    "password": "%%zun.other_bundle.config.database.password%%",
+    "driver": "sequelize:mssql"
+}
+```
+###Configure https
+In the config.json file of the project root you must configure:
+```
+"webserver": {
+		"http_port": 80,//Puerto por http(default)
+		"disabled_https": true,//Variable that allows to enable or disable https
+		"https": {
+			"port": 443,//Https port
+			"key": "/sslcert/apache.key",//Path of the file with the key of the ssl certificate
+			"crt": "/sslcert/apache.crt"//Path of the file with the ssl certificate
+		}
+	},
+```
+Just put the certificates and put the variable disabled_https in false.
+
 ###Examples
 
 Send email:
 ```
 var mailOptions = {
 
-    from: 'test@gmail.com', // sender address
-    
-    to: 'test@gmail.com', // list of receivers
-    
-    subject: 'Hello', // Subject line
-    
-    text: 'Hello world ?', // plain text body
-    
-    html: 'Hello world ?' // html body
-    
+    from: 'test@gmail.com', // sender address   
+    to: 'test@gmail.com', // list of receivers    
+    subject: 'Hello', // Subject line    
+    text: 'Hello world ?', // plain text body    
+    html: 'Hello world ?' // html body    
 };
 
 //Send mail with defined transport object
 
 zun.admin.email.sendMail(mailOptions,function(error,info){
-
-    if (error)
-    
-        return console.log(error);
-        
-    console.log('Message %s sent: %s', info.messageId, info.response);
-    
+    if (error)    
+        return console.log(error);        
+    console.log('Message %s sent: %s', info.messageId, info.response);    
 })
 ```
 * Querying the database 
@@ -140,9 +160,7 @@ zun.bundle_name.render('login.html',{data:"test"}) //Render the html in the logi
 
 proyect/bundle/bundle_name/view/login.html
 ```html
-
 <div>{{data}}</div>
-
 ```
 * Events
 Routing

@@ -13,6 +13,7 @@ var multer = require('multer');
 DataBase=new require("./lib/DataBase");
 var nodemailer = require('nodemailer');
 var https = require('https');
+var crypto=require('crypto');
 /*
  Descripcion:Clase base del Framework,es el nucleo del sistema.
  Carga las configuraciones por bundles y ademas de los routing para cada bundle
@@ -178,10 +179,13 @@ exports.ZunKernel=function(){
 				eval("zun."+_this.config.bundles[i].name+"={}")
 				//Cargo el archivo de configuracion del bundle
 				var conf_bundle=fs.readFileSync(_this.basedir+'/bundles/'+_this.config.bundles[i].name+'/config/config.json', "utf-8");
+				//Evaluo los parametros del config
+
 				//Se lo asigno a una variable global que se puede llamar desde cualquier parte del codigo
 				//Cada nombre que se le ponga al bundle seria una variable global que se pueda utilizar
 				//con las configuraciones de ese bundle.
 				eval("zun."+_this.config.bundles[i].name+'.config='+conf_bundle);
+				eval('evaluateObject(zun.'+_this.config.bundles[i].name+'.config)');
 				//Creo una variable bd para ese bundle para el acceso a la bd de ese bundle
 				eval("zun."+_this.config.bundles[i].name+".db=new DataBase(zun."+_this.config.bundles[i].name+".config.database)");
 				eval("zun."+_this.config.bundles[i].name+".email=nodemailer.createTransport(zun."+_this.config.bundles[i].name+".config.email)");
@@ -195,6 +199,15 @@ exports.ZunKernel=function(){
 			}catch(e){
 				console.log('\033[31m',e,'\x1b[0m');
 			}
+		}
+	}
+
+	function evaluateObject(object){
+		for(var i in object){
+			if(typeof (object[i])=="string" && /^%%.+%%$/ig.test(object[i])){
+				/^%%(.+)%%$/ig.exec(object[i])
+				eval('object[i]='+RegExp.$1);
+			}else if(typeof (object[i])=="object")evaluateObject(object[i])
 		}
 	}
 
@@ -231,7 +244,7 @@ exports.ZunKernel=function(){
 				"ip_server": "localhost",
 				"webserver":{
 					"http_port":80,
-					"disabled_https":false,
+					"disabled_https":true,
 					"https":{
 						"port":443,
 						"key":"server.crt",
@@ -337,7 +350,6 @@ exports.ZunKernel=function(){
 		storage = multer.diskStorage({
 			destination: function (req, file, cb) {
 				var uploadPath =req.uploadPath;
-
 				fs.existsSync(uploadPath, function (exists) {
 					if (!exists) {
 						fs.mkdir(uploadPath, function (err) {
@@ -369,5 +381,20 @@ exports.ZunKernel=function(){
 	}
 
 	this.initUpload();
+
+
+	zun.encrypt=function(text){
+		var cipher = crypto.createCipher('aes-256-cbc','zunframework*2018')
+		var crypted = cipher.update(text,'utf8','hex')
+		crypted += cipher.final('hex');
+		return crypted;
+	}
+
+	zun.decrypt=function(text){
+		var decipher = crypto.createDecipher('aes-256-cbc','zunframework*2018')
+		var dec = decipher.update(text,'hex','utf8')
+		dec += decipher.final('utf8');
+		return dec;
+	}
 
 }
