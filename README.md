@@ -214,7 +214,7 @@ var mailOptions = {
 
 //Send mail with defined transport object
 
-zun.admin.email.sendMail(mailOptions,function(error,info){
+zun.bundle_name.email.sendMail(mailOptions,function(error,info){
     if (error)    
         return console.log(error);        
     console.log('Message %s sent: %s', info.messageId, info.response);    
@@ -225,7 +225,7 @@ zun.admin.email.sendMail(mailOptions,function(error,info){
 * Querying the database 
 
 zun.bundle_name.model.user.findAll() //Querying the database with the user.js model
-
+** For more information revizar: http://docs.sequelizejs.com/manual/tutorial/querying.html
 
 ###Render html
 
