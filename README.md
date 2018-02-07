@@ -1,17 +1,16 @@
 
-#Framework MVC with express, sequelize, nodemailer and swig
+#Framework MVC with express, sequelize or mongoose, nodemailer and swig
 
 ## Installation
 
-```bash
-$ npm install zunkernel
+```
+npm install zunkernel
 ```
 ##Quick start
 
 ```
 var ZunKernel = require('zunkernel').ZunKernel;
 zun = new ZunKernel();
-zun.init();
 ```
 ###Run the script in a command line and you already have a web application listening for port 80. If you put in the web browser http://localhost/testapp you will see the result.
 ## For connection to database install one of the following modules:
@@ -20,6 +19,7 @@ $ npm install --save pg pg-hstore
 $ npm install --save mysql2
 $ npm install --save sqlite3
 $ npm install --save tedious // MSSQL
+$ npm install --save mongoose //MongoDB
 
 ```
 ## System files and folders:
@@ -44,8 +44,7 @@ $ npm install --save tedious // MSSQL
 * zun.basedir (Absolute path to the project root)
 * zun.swig //Access to the swig template engine( See docs http://node-swig.github.io/swig-templates/docs/)
 * zun.config (Object to storage the global configuration variables's of the framework)
-* zun.encrypt (Encrypt a text string with the aes-256 algorithm)
-* zun.encrypt (Decrypt a text string with the aes-256 algorithm)
+* zun.mongoose (In case of using the mongodb driver, this object saves the initialization of the mongoose object: require ('mongoose'); For more information read: https://www.npmjs.com/package/mongoose)
 
 ###When you create a bundle, automatically be create global configuration variables's of the application and you can call it from any part of it:
 * zun.bundle_name.config (Give you access to the configuration file of your bundle, you can call it as an object)
@@ -60,6 +59,8 @@ $ npm install --save tedious // MSSQL
 * zun.on(event_name,fnCallback) //Allow listen some event emitted by the framework
 * zun.emit(event_name,data) //Allow emit a framework's event
 * zun.console(value[,type])//Allows display by command console. The type parameter can take several values success (default), error, warning.
+* zun.encrypt(text) //Encrypt a text string with the aes-256 algorithm
+* zun.dencrypt(text) //Decrypt a text string with the aes-256 algorithm
 
 ##Commands
 
@@ -69,14 +70,70 @@ $ npm install --save tedious // MSSQL
 * zun bundle:asset bundle_name -r (Copy data of www folder of the specified bundle to the public folder of that bundle)
 * zun bundle:create bundle_name (Create a bundle with the folder system inside)
 * zun bundle:install bundle_name (Register the bundle in the framework and copy data of public folder to www folder)
-* zun bundle:model:sync bundle_name (Synchronize the models in the bundle models folder with the specified database in the config file of that bundle. Update the tables)
-* zun bundle:model:sync-forse bundle_name (Synchronize the models in the bundle models folder with the specified database in the config file of that bundle. Remove and recreate the tables)
-* zun bundle:model:map bundle_name (Map the  tables in the specified database in the bundle config and convert to models in the model folder)
-* zun bundle:model:drop bundle_name (Remove the database tables with the existing models in the bundle's model folder)
+* zun bundle:model:sync bundle_name (Synchronize the models in the bundle models folder with the specified database in the config file of that bundle. Update the tables. Only for the sequelize handler)
+* zun bundle:model:sync-force bundle_name (Synchronize the models in the bundle models folder with the specified database in the config file of that bundle. Remove and recreate the tables. Only for the sequelize handler)
+* zun bundle:model:map bundle_name (Map the  tables in the specified database in the bundle config and convert to models in the model folder. Only for the sequelize handler)
+* zun bundle:model:drop bundle_name (Remove the database tables with the existing models in the bundle's model folder. Only for the sequelize handler)
 * zun bundle:command bundle_name file_name_dir:function_execute param1 param2 param_etc (Execute a function in the file with the specified direction in the console and the name of that function. The executed function receive the params like an array of params)
 ##Events
 * routing:Event issued by the framework when accessing a route.See examples.
-  
+* db_connect: Event that is executed when the connection with the database is established. Only for the mongodb handler. See examples
+
+##Define models
+* The models are defined by separate files for each model in the model folder of the bundle.
+* When the handler is mongodb (Revise how models are defined in mongoose)
+```
+module.exports = function() {    
+    // Define schema and user model.
+    var UserSchema = new zun.mongoose.Schema({
+        username: {type: String, required: [true, 'Username is required.'], unique: [true, 'Username already exists.']},
+        password: {type: String, select: false, required: [true, 'Password is required.']},
+        email: {type: String, required: [true, 'Email is required.']},
+        phone: {type: String, required: [true, 'Phone is required.']},
+        firstName: {type: String, required: [true, 'First name is required.']},
+        state:String
+    });
+    return zun.bundle_name.db.model('user', UserSchema);
+}
+```
+* When the handler is sequelize (Revise how models are defined in sequelize)
+
+```
+module.exports = function(sequelize, DataTypes) {
+  return sequelize.define('user', {
+    id: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      primaryKey: true,
+      autoIncrement: true
+    },
+	username: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    email: {
+      type: DataTypes.STRING,
+      allowNull: true
+    },
+    password: {
+      type: DataTypes.STRING,
+      allowNull: true
+    }
+  }, {
+    tableName: 'user'
+  });
+};
+```
+###Map models from the database(only for sequelize handler)
+* Install sequelize-auto module
+```
+npm install --save sequelize-auto
+```
+* Configure access to the database for that bundle in the project / bundles / config / config.json file
+* Execute command
+```
+zun bundle:model:map bundle_name
+```
 ##Routing config by bundle
 ###Example:
 File:zunframework/bundle/bundle_name/config/routing.json
@@ -113,7 +170,8 @@ It is also possible to use references to other bundle or system variables with t
     "driver": "sequelize:mssql"
 }
 ```
-###Configure https
+**The order in which the bundles are loaded are important here
+##Configure https
 In the config.json file of the project root you must configure:
 ```
 "webserver": {
@@ -127,10 +185,23 @@ In the config.json file of the project root you must configure:
 	},
 ```
 Just put the certificates and put the variable disabled_https in false.
-
-###Examples
-
-Send email:
+##Send mail
+* Install nodemailer module
+```
+npm install --save nodemailer
+```
+* Configure mail in the config.js of the bundle:proyect/bundles/bundle_name/config/config.json
+```
+"email": {
+    "service": "Gmail",
+    "auth": {
+        "user": "username",
+        "pass": "password"
+    }
+}
+```
+**Review the configurations passed to the createTransport object in the nodemailer library
+###Example of sending mail 
 ```
 var mailOptions = {
 
@@ -149,12 +220,14 @@ zun.admin.email.sendMail(mailOptions,function(error,info){
     console.log('Message %s sent: %s', info.messageId, info.response);    
 })
 ```
+##Examples
+
 * Querying the database 
 
 zun.bundle_name.model.user.findAll() //Querying the database with the user.js model
 
 
-* Render html
+###Render html
 
 zun.bundle_name.render('login.html',{data:"test"}) //Render the html in the login.html file of the package view folder, passing it the data variable.
 
@@ -162,8 +235,8 @@ proyect/bundle/bundle_name/view/login.html
 ```html
 <div>{{data}}</div>
 ```
-* Events
-Routing
+###Events
+* Routing
 ```
 zun.on('routing', function (data, next) {
     /*Object data:{
@@ -179,4 +252,12 @@ zun.on('routing', function (data, next) {
     */
     next();//Function that allows the call to that route to continue running
 })
+```
+* DB Conecction
+```
+zun.on('db_connect', function (error) {
+	if(Object.keys(error).length !== 0 && error.constructor !== Object)
+		return zun.console("MongoDB: Failed connection.",'error')
+	zun.console('MongoDB: Success connection!');
+});
 ```

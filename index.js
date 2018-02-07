@@ -11,7 +11,6 @@ var bodyParser = require('body-parser');
 var basedir=path.dirname(path.dirname(__dirname))
 var multer = require('multer');
 DataBase=new require("./lib/DataBase");
-var nodemailer = require('nodemailer');
 var https = require('https');
 var crypto=require('crypto');
 /*
@@ -33,6 +32,8 @@ exports.ZunKernel=function(){
 	this.Database=DataBase;
 	//Template engine
 	this.swig=swig;
+	//Object driver mongodb
+	this.mongoose=null;
 	//Variable que almacena las configuraciones generales
 	_this.config=null;
 	//Variable global del framework
@@ -86,6 +87,8 @@ exports.ZunKernel=function(){
 
 	}
 
+	
+
 	//Cargo las configuraciones generales del framework
 	this.loadGeneralConfig=function(){
 		//Cargo las configuraciones generales del framework
@@ -93,14 +96,14 @@ exports.ZunKernel=function(){
 			var config_dir=_this.basedir+'/config.json';
 			return JSON.parse( fs.readFileSync(config_dir, "utf-8") );
 		} catch (error) {
-			return console.log('\033[31m', 'Error load config file.\n'+__dirname+"/config/config.js. "+error.message ,'\x1b[0m');
+			return console.log('\033[31m', 'Error load config file.\n'+__dirname+"/config.js. "+error.message ,'\x1b[0m');
 		}
 	}
 	//Carga los routing por bundles
 	function loadRoutingByBundles(){
 		//Verifico que exista la variable bundle en el config
 		if(!_this.config.bundles)
-			return console.log('\033[31m', 'Error to load bundles. Var bundles do not exist in the config file.\n'+this.basedir+"/config/config.js" ,'\x1b[0m');
+			return console.log('\033[31m', 'Error to load bundles. Var bundles do not exist in the config file.\n'+this.basedir+"/config.js" ,'\x1b[0m');
 		for(i in _this.config.bundles){
 			try{
 				var config=JSON.parse(fs.readFileSync(_this.basedir+'/bundles/'+_this.config.bundles[i].name+'/config/config.json', "utf-8"));
@@ -108,7 +111,7 @@ exports.ZunKernel=function(){
 				for(k in config.router){
 					//Cargo el archivo de routing del bundle
 					var rounting=JSON.parse(fs.readFileSync(_this.basedir+'/bundles/'+_this.config.bundles[i].name+'/config/'+config.router[k], "utf-8"));
-					//Se lo asigno a una variable global que se pude llamar desde cualquier parte del codigo
+					//Se lo asigno a una variable global que se puede llamar desde cualquier parte del codigo
 					for(j in rounting){
 						var method=rounting[j].method.toLowerCase();
 						var url=_this.config.bundles[i].router+rounting[j].url.toLowerCase();
@@ -118,7 +121,6 @@ exports.ZunKernel=function(){
 						if (rounting[j].roles) {
 							roles = rounting[j].roles;
 						}
-						//var result='_this.express.'+method+'("'+url+'",require(_this.basedir+"/bundles/'+_this.config.bundles[i].name+'/controller/'+dir[0]+'").'+dir[1]+');';
 						eval('var fn=require(_this.basedir+"/bundles/' + _this.config.bundles[i].name + '/controller/' + dir[0] + '").' + dir[1]);
 						var values={
 							roles:roles,
@@ -175,7 +177,6 @@ exports.ZunKernel=function(){
 			return console.log('\033[31m', 'Error to load bundles. Var bundles do not exist in the config file.\n'+_this.basedir+"/config/config.js" ,'\x1b[0m');
 		for(i in _this.config.bundles){
 			try{
-
 				eval("zun."+_this.config.bundles[i].name+"={}")
 				//Cargo el archivo de configuracion del bundle
 				var conf_bundle=fs.readFileSync(_this.basedir+'/bundles/'+_this.config.bundles[i].name+'/config/config.json', "utf-8");
@@ -185,10 +186,33 @@ exports.ZunKernel=function(){
 				//Cada nombre que se le ponga al bundle seria una variable global que se pueda utilizar
 				//con las configuraciones de ese bundle.
 				eval("zun."+_this.config.bundles[i].name+'.config='+conf_bundle);
+				//Evaluo las configuraciones por si tiene implicita alguna variable
 				eval('evaluateObject(zun.'+_this.config.bundles[i].name+'.config)');
 				//Creo una variable bd para ese bundle para el acceso a la bd de ese bundle
-				eval("zun."+_this.config.bundles[i].name+".db=new DataBase(zun."+_this.config.bundles[i].name+".config.database)");
-				eval("zun."+_this.config.bundles[i].name+".email=nodemailer.createTransport(zun."+_this.config.bundles[i].name+".config.email)");
+				if(eval("zun."+_this.config.bundles[i].name+".config.database")){
+					var driver=eval('zun.'+_this.config.bundles[i].name+'.config.database.driver');				
+					if(/mongodb/.test(driver)){
+						try{
+							_this.mongoose = require('mongoose');
+						}catch (error){
+							zun.console("You must install the driver for mongodb in the bundle:"+_this.config.bundles[i].name+".\n npm install --save mongoose",'error');
+							continue;
+						}
+
+					}
+					eval("zun."+_this.config.bundles[i].name+".db=new DataBase(zun."+_this.config.bundles[i].name+".config.database)");
+					
+				}
+				//Verifico que esta la variable de configuracion de correo y creo una variable global para ese bundle
+				if(eval("zun."+_this.config.bundles[i].name+".config.email")) {
+					try{
+						var nodemailer = require('nodemailer');
+						eval("zun." + _this.config.bundles[i].name + ".email=nodemailer.createTransport(zun." + _this.config.bundles[i].name + ".config.email)");
+					}catch (error){
+						zun.console("No nodemailer module not found","warning")
+					}
+
+				}
 				//Creo una variable render para ese bundle para el motor de plantilla de ese bundle
 				eval("zun."+_this.config.bundles[i].name+".render=function(file,params){return swig.renderFile( _this.basedir+'/bundles/"+_this.config.bundles[i].name+"/view/'+file,params)}");
 				/*Ejemplo:
@@ -201,7 +225,7 @@ exports.ZunKernel=function(){
 			}
 		}
 	}
-
+	//Funcion que evalua si existen variables en las configuraciones del bundle
 	function evaluateObject(object){
 		for(var i in object){
 			if(typeof (object[i])=="string" && /^%%.+%%$/ig.test(object[i])){
@@ -211,7 +235,7 @@ exports.ZunKernel=function(){
 		}
 	}
 
-
+	//Funcion que carga los modelos de cada bundle y se los asigna a la variable model del bundle.
 	function loadModelByBundle(){
 		//Verifico que exista la variable bundle en el config
 		if(!_this.config.bundles)
@@ -223,9 +247,20 @@ exports.ZunKernel=function(){
 				var listFiles=fs.readdirSync(modelDir);
 				for(j in listFiles){
 					try {
-						var basedir=zun.basedir.replace(/\\/ig,'/');
-						var model_name=listFiles[j].replace(".js","");
-						eval('model.'+model_name+'=require("'+basedir + '/bundles/'+_this.config.bundles[i].name+'/model/'+listFiles[j]+'")(zun.'+_this.config.bundles[i].name+'.db, Sequelize);');
+						var driver=eval('zun.'+_this.config.bundles[i].name+'.config.database.driver');
+						if(/sequelize:/.test(driver)){
+							var basedir=zun.basedir.replace(/\\/ig,'/');
+							var model_name=listFiles[j].replace(".js","");
+							eval('model.'+model_name+'=require("'+basedir + '/bundles/'+_this.config.bundles[i].name+'/model/'+listFiles[j]+'")(zun.'+_this.config.bundles[i].name+'.db, Sequelize);');
+							continue;
+						}
+						if(driver=='mongodb'){						
+							var basedir=zun.basedir.replace(/\\/ig,'/');
+							var model_name=listFiles[j].replace(".js","");
+							eval('model.'+model_name+'=require("'+basedir + '/bundles/'+_this.config.bundles[i].name+'/model/'+listFiles[j]+'")();');
+							continue;
+						}
+						
 					} catch (error) {
 						return console.log('Error!!! require model '+listFiles[j]+'. '+error.message);
 					}
@@ -376,7 +411,8 @@ exports.ZunKernel=function(){
 		type=(type)?type:'success';
 		switch (type){
 			case 'success':{console.log('\x1b[32m',value,'\x1b[0m');}break;
-			case 'error':{console.log('\x1b[41m',value,'\x1b[0m');}break;
+			case 'error':{console.log('\x1b[31m',value,'\x1b[0m');}break;
+			case 'warning':{console.log('\x1b[33m',value,'\x1b[0m');}break;
 		}
 	}
 
@@ -396,5 +432,7 @@ exports.ZunKernel=function(){
 		dec += decipher.final('utf8');
 		return dec;
 	}
+
+	_this.init();
 
 }
