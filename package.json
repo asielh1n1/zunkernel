@@ -1,6 +1,6 @@
 {
   	"name": "zunkernel",
-  	"version": "1.0.13",
+  	"version": "1.0.14",
   	"description": "Framework Model-View-Controller that uses sequelize, express, and swig.",
   	"author": {
     	"name": "Asiel Hernandez Valdes",
