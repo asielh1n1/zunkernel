@@ -13,15 +13,7 @@ var ZunKernel = require('zunkernel').ZunKernel;
 zun = new ZunKernel();
 ```
 ###Run the script in a command line and you already have a web application listening for port 80. If you put in the web browser http://localhost/testapp you will see the result.
-## For connection to database install one of the following modules:
-```
-$ npm install --save pg pg-hstore
-$ npm install --save mysql2
-$ npm install --save sqlite3
-$ npm install --save tedious // MSSQL
-$ npm install --save mongoose //MongoDB
 
-```
 ## System files and folders:
 ```
 -config.json (Storage the framework general configurations, such as listen port and registered bundles)
@@ -38,19 +30,19 @@ $ npm install --save mongoose //MongoDB
         -view (Here are the bundle's html views)
 ```
 ##Features
-
 ###Global framework variables.
 * zun.express (Give access to express module after run application. To use look the module express's docs http://expressjs.com/es/api.html)
 * zun.basedir (Absolute path to the project root)
 * zun.swig //Access to the swig template engine( See docs http://node-swig.github.io/swig-templates/docs/)
 * zun.config (Object to storage the global configuration variables's of the framework)
 * zun.mongoose (In case of using the mongodb driver, this object saves the initialization of the mongoose object: require ('mongoose'); For more information read: https://www.npmjs.com/package/mongoose)
+* zun.sequelize (In case of using the sequelize driver, this object saves the initialization of the sequelize object: require ('sequelize'); For more information read: http://docs.sequelizejs.com/en/latest/docs/getting-started/)
 
 ###When you create a bundle, automatically be create global configuration variables's of the application and you can call it from any part of it:
 * zun.bundle_name.config (Give you access to the configuration file of your bundle, you can call it as an object)
 * zun.bundle_name.db (Object of database access and it's a Sequelize object with the file configurations of "config.json" of your bundle. To use, look Sequelize module's docs)
 * zun.bundle_name.render (Object SWIG configuring directly with folder view of the bundle)
-* zun.bundle_name.model.model_name (Access to the created model with sequelize. Are models of type sequelize. To use, look Sequelize module's docs, in the models topic. Example: zun.test.model.User.findAll())
+* zun.bundle_name.model.model_name (Access to the created model with sequelize or mongoose. Are models of type sequelize or mongoose. To use, look Sequelize module's docs, in the models topic. Example: zun.test.model.User.findAll())
 * zun.bundle_name.email (Object of type createTransport of the nodemailer module. Uses the configuration of the "config.json" file of the bundle. To use, look the nodemailer module configuration)
 
 ###Framework global functions
@@ -61,9 +53,9 @@ $ npm install --save mongoose //MongoDB
 * zun.console(value[,type])//Allows display by command console. The type parameter can take several values success (default), error, warning.
 * zun.encrypt(text) //Encrypt a text string with the aes-256 algorithm
 * zun.dencrypt(text) //Decrypt a text string with the aes-256 algorithm
+* zun.existBundle() //Return true or false if exist bundle.
 
 ##Commands
-
 * zun -v (Framework version)
 * zun bundle:asset -a (Copy data of public folder of all bundles to the www folder)
 * zun bundle:asset bundle_name (Copy data of public folder of the specified bundle to the www folder)
@@ -75,6 +67,49 @@ $ npm install --save mongoose //MongoDB
 * zun bundle:model:map bundle_name (Map the  tables in the specified database in the bundle config and convert to models in the model folder. Only for the sequelize handler)
 * zun bundle:model:drop bundle_name (Remove the database tables with the existing models in the bundle's model folder. Only for the sequelize handler)
 * zun bundle:command bundle_name file_name_dir:function_execute param1 param2 param_etc (Execute a function in the file with the specified direction in the console and the name of that function. The executed function receive the params like an array of params)
+* bundle:restapi bundle_name restapi_name (It generates an api rest, creating the necessary routing and controllers. If it detects a model with the same name, it generates the queries to the database with the database manager specified in the configurations.)
+
+## Database driver
+###Sequelize
+```
+npm install --save sequelize
+```
+* For connection to database install one of the following modules: 
+```
+npm install --save pg pg-hstore
+npm install --save mysql2
+npm install --save sqlite3
+npm install --save tedious // MSSQL
+```
+### MongoDB
+```
+npm install --save mongoose //MongoDB
+```
+###Database config
+* Example:
+File:zunframework/bundles/bundle_name/config/config.json
+```
+"database": {
+    "name": "databse_name", //Database name
+    "host": "127.0.0.1",//Database server
+    "port": "",//Database port
+    "username": "user",//Database user
+    "password": "pass",//Database password
+    "driver": "sequelize:mysql"//Connection driver. Differents drivers: mongodb,sequelize:mysql;sequelize:mssql;sequelize:postgres;sequelize:sqlite
+}
+```
+It is also possible to use references to other bundle or system variables with the following format %% zun.other_bundle.config.database.host %%. Example
+```
+"database": {
+    "name": "databse_name",
+    "host": "%%zun.other_bundle.config.database.host%%",
+    "port": 1433,
+    "username": "%%zun.other_bundle.config.database.username%%",
+    "password": "%%zun.other_bundle.config.database.password%%",
+    "driver": "sequelize:mssql"
+}
+```
+**The order in which the bundles are loaded are important here
 ##Events
 * routing:Event issued by the framework when accessing a route.See examples.
 * db_connect: Event that is executed when the connection with the database is established. Only for the mongodb handler. See examples
@@ -111,14 +146,15 @@ module.exports = function(sequelize, DataTypes) {
       type: DataTypes.STRING,
       allowNull: true
     },
-    email: {
-      type: DataTypes.STRING,
-      allowNull: true
-    },
     password: {
       type: DataTypes.STRING,
       allowNull: true
-    }
+    },
+    salt: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      defaultValue: zun.sequelize.UUIDV1
+    },
   }, {
     tableName: 'user'
   });
@@ -129,7 +165,7 @@ module.exports = function(sequelize, DataTypes) {
 ```
 npm install --save sequelize-auto
 ```
-* Configure access to the database for that bundle in the project / bundles / config / config.json file
+* Configure access to the database for that bundle in the project /bundles/config/config.json file
 * Execute command
 ```
 zun bundle:model:map bundle_name
@@ -146,31 +182,6 @@ File:zunframework/bundle/bundle_name/config/routing.json
 }]
 ```
 
-##Database config
-###Example:
-File:zunframework/bundle/bundle_name/config/config.json
-```
-"database": {
-    "name": "databse_name", //Database name
-    "host": "127.0.0.1",//Database server
-    "port": "",//Database port
-    "username": "user",//Database user
-    "password": "pass",//Database password
-    "driver": "sequelize:none"//Connection driver. Differents drivers: sequelize:mysql;sequelize:mssql;sequelize:postgres;sequelize:sqlite
-}
-```
-It is also possible to use references to other bundle or system variables with the following format %% zun.other_bundle.config.database.host %%. Example
-```
-"database": {
-    "name": "databse_name",
-    "host": "%%zun.other_bundle.config.database.host%%",
-    "port": 1433,
-    "username": "%%zun.other_bundle.config.database.username%%",
-    "password": "%%zun.other_bundle.config.database.password%%",
-    "driver": "sequelize:mssql"
-}
-```
-**The order in which the bundles are loaded are important here
 ##Configure https
 In the config.json file of the project root you must configure:
 ```
@@ -250,6 +261,8 @@ zun.on('routing', function (data, next) {
         res:"Object response express"
         }
     */
+    if(!data.req.session.user)
+        return data.res.status(405).send('Not authorized.');
     next();//Function that allows the call to that route to continue running
 })
 ```

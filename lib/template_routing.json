@@ -1,0 +1,27 @@
+[
+  {
+    "url": "/{{model}}",
+    "method": "post",
+    "path": "{{model}}:{{model}}.create"
+  },
+  {
+    "url": "/{{model}}/:offset/:limit",
+    "method": "get",
+    "path": "{{model}}:{{model}}.list"
+  },
+  {
+    "url": "/{{model}}/:id",
+    "method": "get",
+    "path": "{{model}}:{{model}}.getById"
+  },
+  {
+    "url": "/{{model}}",
+    "method": "put",
+    "path": "{{model}}:{{model}}.update"
+  },
+  {
+    "url": "/{{model}}/:id",
+    "method": "delete",
+    "path": "{{model}}:{{model}}.delete"
+  }
+]

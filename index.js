@@ -18,8 +18,9 @@ var crypto=require('crypto');
  Carga las configuraciones por bundles y ademas de los routing para cada bundle
 
  */
-exports.ZunKernel=function(){
+exports.ZunKernel=function(mode){
 
+	this.mode=(!mode)?'production':mode;
 	var _this=this;
 	zun=this;
 	this.listeners=new Array();
@@ -34,13 +35,15 @@ exports.ZunKernel=function(){
 	this.swig=swig;
 	//Object driver mongodb
 	this.mongoose=null;
+	//Object driver mongodb
+	this.sequelize=null;
 	//Variable que almacena las configuraciones generales
 	_this.config=null;
 	//Variable global del framework
 
-	this.init=function(init_mode){
-		init_mode=(init_mode)?init_mode:'production';
-		switch (init_mode) {
+	function init(){
+		console.log()
+		switch (_this.mode) {
 			case 'production':
 			{
 				folderSystem();
@@ -49,18 +52,18 @@ exports.ZunKernel=function(){
 				loadModelByBundle();
 				loadRoutingByBundles();
 				//Verifico si esta habilitado https o no
-				if(this.config.webserver.disabled_https){
-					this.express.listen(this.config.webserver.http_port,this.config.ip_server,function (){
+				if(_this.config.webserver.disabled_https){
+					_this.express.listen(_this.config.webserver.http_port,_this.config.ip_server,function (){
 						zun.emit('init','Server '+_this.config.ip_server+' running!!\nListen port: '+_this.config.listen_port)
 						console.log('\x1b[32m','Server running!!\nListen port: '+_this.config.webserver.http_port,'\x1b[0m');
 						_this.log("Server initialized...","system.txt");
 					});
 				}else{
-					var privateKey  = fs.readFileSync(_this.basedir+this.config.webserver.https.key, 'utf8').toString();
-					var certificate = fs.readFileSync(_this.basedir+this.config.webserver.https.crt, 'utf8').toString();
+					var privateKey  = fs.readFileSync(_this.basedir+_this.config.webserver.https.key, 'utf8').toString();
+					var certificate = fs.readFileSync(_this.basedir+_this.config.webserver.https.crt, 'utf8').toString();
 					var credentials = {key: privateKey, cert: certificate};
-					var httpsServer = https.createServer(credentials, this.express);
-					httpsServer.listen(this.config.webserver.https.port,function (){
+					var httpsServer = https.createServer(credentials, _this.express);
+					httpsServer.listen(_this.config.webserver.https.port,function (){
 						zun.emit('init','Server '+_this.config.ip_server+' running https!!\nListen port: '+_this.config.webserver.https.port)
 						console.log('\x1b[32m','Server running https!!\nListen port: '+_this.config.webserver.https.port,'\x1b[0m');
 						_this.log("Server initialized...","system.txt");
@@ -190,7 +193,16 @@ exports.ZunKernel=function(){
 				eval('evaluateObject(zun.'+_this.config.bundles[i].name+'.config)');
 				//Creo una variable bd para ese bundle para el acceso a la bd de ese bundle
 				if(eval("zun."+_this.config.bundles[i].name+".config.database")){
-					var driver=eval('zun.'+_this.config.bundles[i].name+'.config.database.driver');				
+					var driver=eval('zun.'+_this.config.bundles[i].name+'.config.database.driver');	
+					if(/sequelize/.test(driver)){
+						try{
+							zun.sequelize = require('sequelize');
+						}catch (error){
+							zun.console("You must install the driver for sequelize in the bundle:"+_this.config.bundles[i].name+".\n npm install --save sequelize",'error');
+							continue;
+						}
+
+					}			
 					if(/mongodb/.test(driver)){
 						try{
 							_this.mongoose = require('mongoose');
@@ -200,6 +212,8 @@ exports.ZunKernel=function(){
 						}
 
 					}
+					if(/none/.test(driver))
+						continue;					
 					eval("zun."+_this.config.bundles[i].name+".db=new DataBase(zun."+_this.config.bundles[i].name+".config.database)");
 					
 				}
@@ -214,7 +228,7 @@ exports.ZunKernel=function(){
 
 				}
 				//Creo una variable render para ese bundle para el motor de plantilla de ese bundle
-				eval("zun."+_this.config.bundles[i].name+".render=function(file,params){return swig.renderFile( _this.basedir+'/bundles/"+_this.config.bundles[i].name+"/view/'+file,params)}");
+				eval("zun."+_this.config.bundles[i].name+".render=function(file,params){return zun.swig.renderFile( _this.basedir+'/bundles/"+_this.config.bundles[i].name+"/view/'+file,params)}");
 				/*Ejemplo:
 				 * -De cualquier lugar de la app puedo decir zunkernel.bundle.db y puedo acceder a la base de datos
 				 * -De cualquier lugar de la app puedo decir zunkernel.bundle.render y renderizar una vista
@@ -251,7 +265,7 @@ exports.ZunKernel=function(){
 						if(/sequelize:/.test(driver)){
 							var basedir=zun.basedir.replace(/\\/ig,'/');
 							var model_name=listFiles[j].replace(".js","");
-							eval('model.'+model_name+'=require("'+basedir + '/bundles/'+_this.config.bundles[i].name+'/model/'+listFiles[j]+'")(zun.'+_this.config.bundles[i].name+'.db, Sequelize);');
+							eval('model.'+model_name+'=require("'+basedir + '/bundles/'+_this.config.bundles[i].name+'/model/'+listFiles[j]+'")(zun.'+_this.config.bundles[i].name+'.db, zun.sequelize);');
 							continue;
 						}
 						if(driver=='mongodb'){						
@@ -260,7 +274,9 @@ exports.ZunKernel=function(){
 							eval('model.'+model_name+'=require("'+basedir + '/bundles/'+_this.config.bundles[i].name+'/model/'+listFiles[j]+'")();');
 							continue;
 						}
-						
+						if(/none/.test(driver))
+							continue;
+						zun.console("This database driver is not support yet.")
 					} catch (error) {
 						return console.log('Error!!! require model '+listFiles[j]+'. '+error.message);
 					}
@@ -348,9 +364,9 @@ exports.ZunKernel=function(){
 
 	}
 
-	//Emite un evento para toda las aplicaciones ideal para comunicar modulos
+	//Emite un evento para toda las aplicaciones ideal para comunicar bundles
 	this.emit=function(event,data,fn){
-		data=(data)?data:{};
+		data=(data)?data:null;
 		for(i in _this.listeners){
 			if(event==_this.listeners[i].event)
 				_this.listeners[i].fn(data,fn);
@@ -433,6 +449,6 @@ exports.ZunKernel=function(){
 		return dec;
 	}
 
-	_this.init();
+	init();
 
 }
