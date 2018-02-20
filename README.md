@@ -1,5 +1,5 @@
 
-#Framework MVC with express, sequelize or mongoose, nodemailer and swig
+# Framework MVC with express, sequelize or mongoose, nodemailer and swig
 
 ## Installation
 
