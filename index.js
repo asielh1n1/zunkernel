@@ -212,9 +212,8 @@ exports.ZunKernel=function(mode){
 						}
 
 					}
-					if(/none/.test(driver))
-						continue;					
-					eval("zun."+_this.config.bundles[i].name+".db=new DataBase(zun."+_this.config.bundles[i].name+".config.database)");
+					if(!/none/.test(driver))
+						eval("zun."+_this.config.bundles[i].name+".db=new DataBase(zun."+_this.config.bundles[i].name+".config.database)");
 					
 				}
 				//Verifico que esta la variable de configuracion de correo y creo una variable global para ese bundle

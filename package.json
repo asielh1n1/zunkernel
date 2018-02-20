@@ -1,6 +1,6 @@
 {
   	"name": "zunkernel",
-  	"version": "1.0.17",
+  	"version": "1.0.22",
   	"description": "Framework MVC with express, sequelize or mongoose, nodemailer and swig.",
   	"author": {
     	"name": "Asiel Hernandez Valdes",
