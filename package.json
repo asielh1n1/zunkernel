@@ -1,55 +1,84 @@
 {
-  	"name": "zunkernel",
-  	"version": "1.0.22",
-  	"description": "Framework MVC with express, sequelize or mongoose, nodemailer and swig.",
-  	"author": {
-    	"name": "Asiel Hernandez Valdes",
-    	"email": "asielhv@gmail.com"
-  	},
-	"dependencies": {
-		"body-parser": "1.15.2",
-		"cookie-parser":"1.4.3",
-		"errorhandler":"1.4.3",
-		"express":"4.14.0",
-		"express-session":"1.14.1",
-		"multer":"1.2.0",
-		"swig": "~1.3.2"
-	},
-	"files":[
-		"lib/command.js",
-		"lib/console.js",
-		"lib/DataBase.js",
-		"lib/template_controller.js",
-		"lib/template_routing.json",
-		"index.js",
-		"zun",
-		"zun.cmd"
-	],
-	"keywords": [
-		"framework",
-		"mvc",
-		"sequelize",
-		"express",
-		"nodemailer",
-		"sequelize-auto",
-		"orm",
-		"postgres",
-		"mysql",
-		"mssql",
-		"sqlite",
-		"https",
-		"mongodb",
-		"mongoose",
-		"model",
-		"view"
-	],
-  	"license": "MIT",
-  	"main": "index",
-  	"engines": {
-    	"node": ">=6.0.0"
-  	},
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/asielh1n1/zunkernel.git"
-	}
+  "_from": "zunkernel@1.0.22",
+  "_id": "zunkernel@1.0.22",
+  "_inBundle": false,
+  "_integrity": "sha512-MovXZr5dRq+aUGJAQ/zKDzJYQ1qWwIbQkvtN+whjU5uQxePWoqaoO01c5zAyHADTm23iS25QZkIryF2YemhnkA==",
+  "_location": "/zunkernel",
+  "_phantomChildren": {},
+  "_requested": {
+    "type": "version",
+    "registry": true,
+    "raw": "zunkernel@1.0.22",
+    "name": "zunkernel",
+    "escapedName": "zunkernel",
+    "rawSpec": "1.0.22",
+    "saveSpec": null,
+    "fetchSpec": "1.0.22"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/zunkernel/-/zunkernel-1.0.22.tgz",
+  "_shasum": "7b616d68626a7f2dbef4392ed9f9f1b321afa586",
+  "_spec": "zunkernel@1.0.22",
+  "_where": "E:\\programmer\\dynamic-report",
+  "author": {
+    "name": "Asiel Hernandez Valdes",
+    "email": "asielhv@gmail.com"
+  },
+  "bugs": {
+    "url": "https://github.com/asielh1n1/zunkernel/issues"
+  },
+  "bundleDependencies": false,
+  "dependencies": {
+    "body-parser": "1.15.2",
+    "cookie-parser": "1.4.3",
+    "errorhandler": "1.4.3",
+    "express": "4.14.0",
+    "express-session": "1.14.1",
+    "multer": "1.2.0",
+    "handlebars": "^4.0.11"
+  },
+  "deprecated": false,
+  "description": "Framework MVC with express, sequelize or mongoose, nodemailer and swig.",
+  "engines": {
+    "node": ">=6.0.0"
+  },
+  "files": [
+    "lib/command.js",
+    "lib/console.js",
+    "lib/DataBase.js",
+    "lib/template_controller.js",
+    "lib/template_routing.json",
+    "index.js",
+    "zun",
+    "zun.cmd"
+  ],
+  "homepage": "https://github.com/asielh1n1/zunkernel#readme",
+  "keywords": [
+    "framework",
+    "mvc",
+    "sequelize",
+    "express",
+    "nodemailer",
+    "sequelize-auto",
+    "orm",
+    "postgres",
+    "mysql",
+    "mssql",
+    "sqlite",
+    "https",
+    "mongodb",
+    "mongoose",
+    "model",
+    "view"
+  ],
+  "license": "MIT",
+  "main": "index",
+  "name": "zunkernel",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/asielh1n1/zunkernel.git"
+  },
+  "version": "1.0.22"
 }

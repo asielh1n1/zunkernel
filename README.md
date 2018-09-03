@@ -1,5 +1,5 @@
 
-# Framework MVC with express, sequelize or mongoose, nodemailer and swig
+#Framework MVC with express, sequelize or mongoose, nodemailer and swig
 
 ## Installation
 
@@ -54,6 +54,7 @@ zun = new ZunKernel();
 * zun.encrypt(text) //Encrypt a text string with the aes-256 algorithm
 * zun.dencrypt(text) //Decrypt a text string with the aes-256 algorithm
 * zun.existBundle(bundle_name) //Return true or false if exist bundle.
+* zun.render(file_name,data,bundle_name,[type])//Funcion que ejecuta el motor de plantilla usado en el framework. El parametro nombre de archivo es de los que se encuentran dentro de la carpeta view del bundle pasado por parametro. El parametro type especifica el motor de plantilla que desea utilizar ya sea swig o handlebars. Por defecto usa handlebars. 
 
 ## Commands
 * zun -v (Framework version)
@@ -88,6 +89,24 @@ npm install --save mongoose //MongoDB
 ### Database config
 * Example:
 File:zunframework/bundles/bundle_name/config/config.json
+Sequlize configuration:
+```
+"database": {
+    "name": "db_name",
+    "username": "root",
+    "password": "root",
+    "driver":"sequelize",
+    "options":{
+        "dialect":"mysql",//Differents dialect: mysql;mssql;postgres;sqlite
+        "host": "localhost",
+        "port": 3306,
+        "define": {
+            "timestamps": false
+        }
+    }
+}
+```
+MongoDB configuration:
 ```
 "database": {
     "name": "databse_name", //Database name
@@ -95,7 +114,7 @@ File:zunframework/bundles/bundle_name/config/config.json
     "port": "",//Database port
     "username": "user",//Database user
     "password": "pass",//Database password
-    "driver": "sequelize:mysql"//Connection driver. Differents drivers: mongodb,sequelize:mysql;sequelize:mssql;sequelize:postgres;sequelize:sqlite
+    "driver": "mongodb"
 }
 ```
 It is also possible to use references to other bundle or system variables with the following format %% zun.other_bundle.config.database.host %%. Example
@@ -110,10 +129,22 @@ It is also possible to use references to other bundle or system variables with t
 }
 ```
 **The order in which the bundles are loaded are important here
+## Template Engine
+El motor de plantilla a utilizar se especifica en el archivo de configuracion general del sistema, con el parametro engine. Por defecto usa handlebars.
+Para usar un motor de plantilla nuevo debe instalar el modulo con npm y poner exactamente el nombre del modulo en el parametro engine del config general. El sistema requiere el modulo este y dispara el evento engine_not_found.
+```
+zun.on('engine_not_found',function(template,data){
+    //My code here
+    return result_render_template;
+})
+```
+
 ## Events
 * routing:Event issued by the framework when accessing a route.See examples.
+* db_config: Event that is executed when you finish configuring access to database. Ideal to integrate other drivers other than sequelize or mongoose.  Parameters {config: "It is the variable zun.bundle_name.config", bundle: "bundle name"}
 * db_connect: Event that is executed when the connection with the database is established. Only for the mongodb handler. See examples
-
+* before_render: Evento que se ejecuta antes de renderizar la platilla, cuando se ejecuta la funcion zun.bundle_name.render('dir_view'). Este evento envia la plantilla en bruto y los datos.
+* engine_not_found:Cuando no encuentra un motor de plantilla predeterminado ejecuta este evento. Ideal para introducir un motor nuevo a utilizar en el framework. Ver apartado Template Engine
 ## Define models
 * The models are defined by separate files for each model in the model folder of the bundle.
 * When the handler is mongodb (Revise how models are defined in mongoose)
@@ -168,7 +199,7 @@ npm install --save sequelize-auto
 * Configure access to the database for that bundle in the project /bundles/config/config.json file
 * Execute command
 ```
-zun bundle:model:map bundle_name
+zun bundle:model:map bundle_name [table1,table2,table3]
 ```
 ## Routing config by bundle
 ### Example:

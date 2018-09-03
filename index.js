@@ -2,7 +2,6 @@
 var fs = require('fs');
 var path=require('path');
 var express=require('express');
-var swig = require('swig');
 //Modulo para el trabajo con cookies de express
 var cookieParser = require('cookie-parser');
 //Modulo para el trabajo con sesiones de express
@@ -31,8 +30,8 @@ exports.ZunKernel=function(mode){
 	this.express=null;
 	//Object access database
 	this.Database=DataBase;
-	//Template engine
-	this.swig=swig;
+	
+	this.engine=null;
 	//Object driver mongodb
 	this.mongoose=null;
 	//Object driver mongodb
@@ -42,7 +41,6 @@ exports.ZunKernel=function(mode){
 	//Variable global del framework
 
 	function init(){
-		console.log()
 		switch (_this.mode) {
 			case 'production':
 			{
@@ -53,7 +51,7 @@ exports.ZunKernel=function(mode){
 				loadRoutingByBundles();
 				//Verifico si esta habilitado https o no
 				if(_this.config.webserver.disabled_https){
-					_this.express.listen(_this.config.webserver.http_port,_this.config.ip_server,function (){
+					_this.express.listen(_this.config.webserver.http_port,function (){
 						zun.emit('init','Server '+_this.config.ip_server+' running!!\nListen port: '+_this.config.listen_port)
 						console.log('\x1b[32m','Server running!!\nListen port: '+_this.config.webserver.http_port,'\x1b[0m');
 						_this.log("Server initialized...","system.txt");
@@ -120,13 +118,10 @@ exports.ZunKernel=function(mode){
 						var url=_this.config.bundles[i].router+rounting[j].url.toLowerCase();
 						url=url.replace("//","/");
 						var dir=rounting[j].path.split(":");
-						var roles = [];
-						if (rounting[j].roles) {
-							roles = rounting[j].roles;
-						}
+						var roles = (rounting[j].roles)?rounting[j].roles:null;
 						eval('var fn=require(_this.basedir+"/bundles/' + _this.config.bundles[i].name + '/controller/' + dir[0] + '").' + dir[1]);
 						var values={
-							roles:roles,
+							roles:(roles)?roles:null,
 							url:url,
 							method:method,
 							bundle:_this.config.bundles[i].name,
@@ -147,12 +142,31 @@ exports.ZunKernel=function(mode){
 	}
 	//Funcion intermedia para ejecutar los controladores dada una ruta
 	function middleWare(req, res, values, fnController) {
-		if (values.roles.length) {
-			if(typeof(values.roles)=="string" && values.roles!=req.session.role)
+		if (values.roles) {
+			if(values.roles && !req.session.role)
 				return res.status(403).send('Not authorized.');
-			if (values.roles.indexOf(req.session.role)==-1)
+			if(typeof(values.roles)=="string" &&  typeof(req.session.role)=="string" && values.roles!=req.session.role)
 				return res.status(403).send('Not authorized.');
-
+			if(values.roles instanceof Array &&  (typeof(req.session.role)=='number' || typeof(req.session.role)=="string")){
+				if(values.roles.length && values.roles.indexOf( req.session.role)==-1)
+					return res.status(403).send('Not authorized.');
+			}
+			if(req.session.role instanceof Array &&  (typeof(values.roles)=='number' || typeof(values.roles)=="string")){
+				if(values.role.length && req.session.role.indexOf(values.roles)==-1)
+					return res.status(403).send('Not authorized.');
+			}
+			if(req.session.role instanceof Array && values.roles instanceof Array){
+				var exist=false;
+				for(var i in values.roles){
+					for(var j in req.session.role){
+						if(req.session.role[j]==values.roles[i])
+							exist=true;
+					}
+				}
+				if(!exist)
+					return res.status(403).send('Not authorized.');	
+			} 	
+			
 		}
 		if(_this.existListeners('routing')){
 			values.req=req;
@@ -178,13 +192,11 @@ exports.ZunKernel=function(mode){
 		//Verifico que exista la variable bundle en el config
 		if(!_this.config.bundles)
 			return console.log('\033[31m', 'Error to load bundles. Var bundles do not exist in the config file.\n'+_this.basedir+"/config/config.js" ,'\x1b[0m');
-		for(i in _this.config.bundles){
+		for(var i in _this.config.bundles){
 			try{
 				eval("zun."+_this.config.bundles[i].name+"={}")
 				//Cargo el archivo de configuracion del bundle
 				var conf_bundle=fs.readFileSync(_this.basedir+'/bundles/'+_this.config.bundles[i].name+'/config/config.json', "utf-8");
-				//Evaluo los parametros del config
-
 				//Se lo asigno a una variable global que se puede llamar desde cualquier parte del codigo
 				//Cada nombre que se le ponga al bundle seria una variable global que se pueda utilizar
 				//con las configuraciones de ese bundle.
@@ -194,27 +206,26 @@ exports.ZunKernel=function(mode){
 				//Creo una variable bd para ese bundle para el acceso a la bd de ese bundle
 				if(eval("zun."+_this.config.bundles[i].name+".config.database")){
 					var driver=eval('zun.'+_this.config.bundles[i].name+'.config.database.driver');	
-					if(/sequelize/.test(driver)){
+					if(driver=='sequelize'){
 						try{
 							zun.sequelize = require('sequelize');
 						}catch (error){
 							zun.console("You must install the driver for sequelize in the bundle:"+_this.config.bundles[i].name+".\n npm install --save sequelize",'error');
 							continue;
 						}
-
+						eval("zun."+_this.config.bundles[i].name+".db=new DataBase(zun."+_this.config.bundles[i].name+".config.database)");
 					}			
-					if(/mongodb/.test(driver)){
+					if(driver=='mongodb'){
 						try{
 							_this.mongoose = require('mongoose');
 						}catch (error){
 							zun.console("You must install the driver for mongodb in the bundle:"+_this.config.bundles[i].name+".\n npm install --save mongoose",'error');
 							continue;
 						}
-
-					}
-					if(!/none/.test(driver))
 						eval("zun."+_this.config.bundles[i].name+".db=new DataBase(zun."+_this.config.bundles[i].name+".config.database)");
-					
+					}
+					var db_config=eval("zun."+_this.config.bundles[i].name+".config.database");
+					zun.emit('db_config',{config:db_config,bundle:_this.config.bundles[i].name})					
 				}
 				//Verifico que esta la variable de configuracion de correo y creo una variable global para ese bundle
 				if(eval("zun."+_this.config.bundles[i].name+".config.email")) {
@@ -222,22 +233,89 @@ exports.ZunKernel=function(mode){
 						var nodemailer = require('nodemailer');
 						eval("zun." + _this.config.bundles[i].name + ".email=nodemailer.createTransport(zun." + _this.config.bundles[i].name + ".config.email)");
 					}catch (error){
-						zun.console("No nodemailer module not found","warning")
+						zun.console("Nodemailer module not found","warning")
 					}
 
 				}
-				//Creo una variable render para ese bundle para el motor de plantilla de ese bundle
-				eval("zun."+_this.config.bundles[i].name+".render=function(file,params){return zun.swig.renderFile( _this.basedir+'/bundles/"+_this.config.bundles[i].name+"/view/'+file,params)}");
+
+				try{
+					_this.engine=eval('require(\''+_this.config.engine+'\')');								
+				}catch (error){
+					zun.console("Template engine module not found","warning")
+				}
+				//Creo una variable render para ese bundle para el motor de plantilla de ese bundle	
+				eval("zun."+_this.config.bundles[i].name+".render=function(file,params){return zun.renderFile(file,params,'"+_this.config.bundles[i].name+"')}");
+				
 				/*Ejemplo:
 				 * -De cualquier lugar de la app puedo decir zunkernel.bundle.db y puedo acceder a la base de datos
 				 * -De cualquier lugar de la app puedo decir zunkernel.bundle.render y renderizar una vista
 				 * -De cualquier lugar de la app puedo decir zunkernel.bundle.config.values y acceder a los valores de las configuraciones definidas
 				 */
+				if(/\.js$/ig.test(_this.config.bundles[i].router)){
+					require(_this.basedir+'/bundles/'+_this.config.bundles[i].name+'/'+_this.config.bundles[i].router);
+				}
 			}catch(e){
 				console.log('\033[31m',e,'\x1b[0m');
 			}
 		}
 	}
+
+	this.renderFile=function(file,data,bundle,type){
+		if(!_this.engine){
+			zun.console("Template engine module not found","error");
+			return "";
+		}
+		var result="";
+		type=(type)?type:_this.config.engine;
+		if(fs.existsSync(file))
+			var renderDir=file;
+		else var renderDir=_this.basedir+'/bundles/'+bundle+'/view/'+file;
+		if(!fs.existsSync(renderDir)){
+			zun.console("File to render not found","error");
+			return "Error!! file not found";
+		}
+		var source=fs.readFileSync(renderDir,'utf8');
+		_this.emit('before_render_file',{template:source,data:data});
+		switch (type) {
+			case 'swig':{
+				return _this.engine.renderFile(renderDir,data)
+			}break;
+			case 'handlebars':{
+				var template = _this.engine.compile(source);
+				return template(data);
+			}break;
+			default:{
+				return _this.emit('engine_not_found',{template:source,data:data});
+			}break;
+		}
+	}
+
+	this.render=function(template,data,type){
+				
+		if(!_this.engine){
+			zun.console("Template engine module not found","error");
+			return "";
+		}
+		var result="";
+		type=(type)?type:_this.config.engine;
+		_this.emit('before_render',{template:template,data:data});
+		switch (type) {
+			case 'swig':{
+				var swig=require('swig')
+				return swig.render(template,{locals:data})
+			}break;
+			case 'handlebars':{
+				var handlebars=require('handlebars');
+				var template = handlebars.compile(template);
+				return template(data);
+			}break;
+			default:{
+				return _this.emit('engine_not_found',{template:template,data:data});
+			}break;
+		}
+	}
+	
+	
 	//Funcion que evalua si existen variables en las configuraciones del bundle
 	function evaluateObject(object){
 		for(var i in object){
@@ -253,15 +331,22 @@ exports.ZunKernel=function(mode){
 		//Verifico que exista la variable bundle en el config
 		if(!_this.config.bundles)
 			return console.log('\033[31m', 'Error to load bundles. Var bundles do not exist in the config file.\n'+_this.basedir+"/config/config.js" ,'\x1b[0m');
-		for(i in _this.config.bundles){
+		for(var i in _this.config.bundles){
 			var modelDir=zun.basedir+"/bundles/"+_this.config.bundles[i].name+"/model/";
 			var model={};
 			try {
-				var listFiles=fs.readdirSync(modelDir);
-				for(j in listFiles){
+				try {
+					var listFiles=fs.readdirSync(modelDir);
+				} catch (error) {
+					zun.console('Folder model no exist in the bundle '+_this.config.bundles[i].name,'warning')
+					continue;
+				}
+				
+				for(var j in listFiles){
 					try {
+						
 						var driver=eval('zun.'+_this.config.bundles[i].name+'.config.database.driver');
-						if(/sequelize:/.test(driver)){
+						if(driver=='sequelize'){
 							var basedir=zun.basedir.replace(/\\/ig,'/');
 							var model_name=listFiles[j].replace(".js","");
 							eval('model.'+model_name+'=require("'+basedir + '/bundles/'+_this.config.bundles[i].name+'/model/'+listFiles[j]+'")(zun.'+_this.config.bundles[i].name+'.db, zun.sequelize);');
@@ -277,7 +362,7 @@ exports.ZunKernel=function(mode){
 							continue;
 						zun.console("This database driver is not support yet.")
 					} catch (error) {
-						return console.log('Error!!! require model '+listFiles[j]+'. '+error.message);
+						console.log('Error!!! require model '+listFiles[j]+'. '+error.message);
 					}
 				}
 			} catch (error) {
@@ -291,7 +376,6 @@ exports.ZunKernel=function(mode){
 		var fileConfig=_this.basedir+'/config.json';
 		if (!fs.existsSync(fileConfig)){
 			var dataConfig = {
-				"ip_server": "localhost",
 				"webserver":{
 					"http_port":80,
 					"disabled_https":true,
@@ -301,7 +385,8 @@ exports.ZunKernel=function(mode){
 						"crt":"server.key"
 					}
 				},
-				"bundles": []
+				"bundles": [],
+				"engine":"handlebars"
 
 			}
 			fs.writeFileSync(_this.basedir + "/config.json", JSON.stringify(dataConfig, null, "\t"));
@@ -366,12 +451,14 @@ exports.ZunKernel=function(mode){
 	//Emite un evento para toda las aplicaciones ideal para comunicar bundles
 	this.emit=function(event,data,fn){
 		data=(data)?data:null;
+		var result=false;
 		for(i in _this.listeners){
 			if(event==_this.listeners[i].event)
-				_this.listeners[i].fn(data,fn);
+				result=_this.listeners[i].fn(data,fn);
 		}
+		return result;
 	}
-	//Recibe un evento emitido ideal para comunicar modulos
+	//Recibe un evento emitido, ideal para comunicar modulos
 	this.on=function(event,fnCallback){
 		_this.listeners.push({event:event,fn:fnCallback});
 	}
@@ -388,7 +475,8 @@ exports.ZunKernel=function(mode){
 	//Si le pasas el parametro file crea un archivo con ese nombre
 	this.log=function(msg,filename,fnCallback){
 		var date=new Date();
-		filename=(filename)?"logs/"+filename:"logs/log.txt";
+		filename=date.getFullYear()+'_'+(date.getMonth()+1)+'_'+((filename)?filename:"log.txt");
+		filename="logs/"+filename;		
 		msg="["+date.toString()+"--"+msg+"]\n";
 		fs.appendFile(filename,msg,function(error){
 			if(fnCallback)
