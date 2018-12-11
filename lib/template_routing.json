@@ -2,26 +2,41 @@
   {
     "url": "/{{model}}",
     "method": "post",
-    "path": "{{model}}:{{model}}.create"
+    "controller":"{{model}}",
+    "fn": "{{model|capitalize}}.create",
+    "authenticated":"{{auth}}",
+    "roles":""
   },
   {
     "url": "/{{model}}/:offset/:limit",
     "method": "get",
-    "path": "{{model}}:{{model}}.list"
+    "controller":"{{model}}",
+    "fn": "{{model|capitalize}}.list",
+    "authenticated":"{{auth}}",
+    "roles":""
   },
   {
     "url": "/{{model}}/:id",
     "method": "get",
-    "path": "{{model}}:{{model}}.getById"
+    "controller":"{{model}}",
+    "fn": "{{model|capitalize}}.getById",
+    "authenticated":"{{auth}}",
+    "roles":""
   },
   {
-    "url": "/{{model}}",
+    "url": "/{{model}}/:id",
     "method": "put",
-    "path": "{{model}}:{{model}}.update"
+    "controller":"{{model}}",
+    "fn": "{{model|capitalize}}.update",
+    "authenticated":"{{auth}}",
+    "roles":""
   },
   {
     "url": "/{{model}}/:id",
     "method": "delete",
-    "path": "{{model}}:{{model}}.delete"
+    "controller":"{{model}}",
+    "fn": "{{model|capitalize}}.delete",
+    "authenticated":false,
+    "roles":""
   }
 ]
