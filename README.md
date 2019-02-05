@@ -218,9 +218,9 @@ Sequlize configuration:
         "port": 3306,
         "define": {
             "timestamps": false
-        }
-    },
-    "logging":false
+        },
+        "logging":false
+    }
 }
 ```
 MongoDB configuration:
