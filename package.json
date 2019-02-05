@@ -1,6 +1,6 @@
 {
   "_from": "zunkernel",
-  "_id": "zunkernel@1.0.28",
+  "_id": "zunkernel@1.1.3",
   "_inBundle": false,
   "_integrity": "sha512-aa4rsX7Ma2/gS91pBQRE1tDGqnZd0wbaKzxxGbohkAz9FuGmRFfBrJQtenQTq2eUDCqIQQNlATH3diDhIPlNMw==",
   "_location": "/zunkernel",
@@ -61,7 +61,19 @@
     "src/bootstrap.min.css",
     "src/bootstrap.min.js",
     "src/jquery.slim.min.js",
-    "src/popper.min.js"
+    "src/popper.min.js",
+    "templates/contact.html",
+    "templates/crud_controller.html",
+    "templates/crud_edit.html",
+    "templates/crud_list.html",
+    "templates/crud_new.html",
+    "templates/crud_routing.html",
+    "templates/error.html",
+    "templates/home.html",
+    "templates/index.html",
+    "templates/template_controller.html",
+    "templates/template_repository.html",
+    "templates/template_routing.html"
   ],
   "homepage": "https://github.com/asielh1n1/zunkernel#readme",
   "keywords": [
@@ -95,5 +107,5 @@
     "postinstall": "node zun-cli autoload",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "version": "1.1.2"
+  "version": "1.1.3"
 }
