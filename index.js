@@ -47,17 +47,19 @@ exports.ZunKernel = function () {
 		templateEngine:null,
 		db:null,
 		express:null,
-		authenticate:null
+		authenticate:null,
+		handleError:null
 	}
 
 	zun = this;
 
 	this.init=function(mode) {
 		_this.mode=mode;
-		_this.folderSystem();		
+		_this.folderSystem();	
+		_this.swig.setDefaults({ cache: false });	
 		//Almaceno las configuraciones generales
 		_this.loadGeneralConfig();
-		_this.Command.defaultCommand();		
+		_this.Command.defaultCommand();				
 		loadConfigByBundle();
 		loadModelByBundle();		
 		switch (mode) {
@@ -80,11 +82,6 @@ exports.ZunKernel = function () {
 				console.log('\033[31m', "This mode of initialize zun framework not exist", '\x1b[0m');
 			} break;
 		}
-		if (!zun.config.bundles.length) {	
-			zun.execCommand(['create-bundle','-b','myapp'])
-		}
-
-
 	}
 
 
@@ -150,9 +147,9 @@ exports.ZunKernel = function () {
 	//Carga los routing por bundles	
 	this.loadRoutingByBundles=function() {
 		//Verifico que exista la variable bundle en el config
-		if (!_this.config.bundles)
-			return console.log('\033[31m', 'Error to load bundles. Var bundles do not exist in the config file.\n' + this.basedir + "/config.js", '\x1b[0m');
-		for (i in _this.config.bundles) {
+		if (!zun.config.bundles.length)
+			return zun.console('There is no bundle even. To create a bundle you can use the command "zun create-bundle"','warning')
+		for (i in _this.config.bundles){
 			try {
 				var config = JSON.parse(fs.readFileSync(_this.basedir + '/bundles/' + _this.config.bundles[i].name + '/config/config.json', "utf-8"));
 				//Ejecuto cada uno de los ruting de ese bundle
@@ -165,92 +162,106 @@ exports.ZunKernel = function () {
 						var method=rounting[j].method.toLowerCase();
 						url = url.replace("//", "/");
 						var roles = (rounting[j].roles) ? rounting[j].roles : null;
-						var fn = require(_this.basedir + "/bundles/" + _this.config.bundles[i].name + '/controller/' + rounting[j].controller)[rounting[j].fn];
+						if(/\w\.\w/ig.test(rounting[j].fn)){
+							var auxFn=rounting[j].fn.split('.');
+							var fn = require(_this.basedir + "/bundles/" + _this.config.bundles[i].name + '/controller/' + rounting[j].controller)[auxFn[0]][auxFn[1]];
+						}else var fn = require(_this.basedir + "/bundles/" + _this.config.bundles[i].name + '/controller/' + rounting[j].controller)[rounting[j].fn];
 						var values = {
 							roles:roles,
 							url: url,
-							authenticated:(rounting[j].authenticated)?rounting[j].authenticated:null,
 							method: method,
 							bundle: _this.config.bundles[i].name,
 							controller: rounting[j].controller,
-							fn: rounting[j].fn
+							fn: fn
 						}
-						var result = '_this.express.' + method + '("' + url + '",function(req,res){middleWare(req,res,' + JSON.stringify(values) + ',fn)});';
-						result = result.replace("//", "/");
-						eval(result);
+						_this.express[method](url,middleWare(values),fn);
 					}
 				}
 
-			} catch (e) {
+			}catch(e){
 				console.log('\033[31m', "Error load routing zunkernel", '\x1b[0m');
 				console.log('\033[31m', e, '\x1b[0m');
 			}
 		}
+		//Manejo los errores que ocurran 
+		_this.express.use(function(err,req,res,next){
+			if(err){
+				err.statusCode=500;
+				return _this.zunHandleError(err,req,res);	
+			}
+			return;
+		})
+		//manejo los codigos 404(page not found)
+		zun.express.use(function(req,res,next){
+			return zun.zunHandleError({statusCode:404},req,res);
+		})
 		//Configuro la base de datos personalizada del usuario
 		if(_this.useCustom.db){
-			zun.db=_this.useCustom.db(zun.config.database)
+			zun.db=_this.useCustom.db(zun.config.database);
 		}
 	}
 	//Funcion intermedia para ejecutar los controladores dada una ruta
-	function middleWare(req, res, values, fnController) {
-		req.zunAuthenticate=zunAuthenticate;
-		req.zunLogout=zunLogout;
-		var roles=null;
-		if(values.authenticated==='session'){
-
-			if(!req.session.zunAuthenticateId)return res.status(403).send('Not authorized.');
-			roles=req.session.zunAuthenticateRoles;
-			req.session.zunsession={id:req.session.zunAuthenticateId,roles:req.session.zunAuthenticateRoles}
-		}	
-		if(values.authenticated==='jsonwebtoken'){
-			var token = req.body[zun.config.webserver.jsonwebtoken.post_body_name] || req.query[zun.config.webserver.jsonwebtoken.get_query_name] || req.headers[zun.config.webserver.jsonwebtoken.header_http_name];
-			if(!token)return res.status(403).send('Not authorized.');
-			try {
-				var decoded = _this.jsonwebtoken.verify(token,zun.config.webserver.jsonwebtoken.secret);
-				roles=decoded.roles;
-				req.session.zunsession=decoded;
-			} catch(err) {
-				return res.status(403).send('Not authorized.');
-			}
-		}
-		//Verifico si tiene rol
-		if (values.roles) {
-			//Si tiene roles en el routing y ademas la variable role en la session
-			if (values.roles && !roles)
-				return res.status(403).send('Not authorized.');
-			if (typeof (values.roles) == "string" && typeof (roles) == "string" && values.roles != roles)
-				return res.status(403).send('Not authorized.');
-			if (values.roles instanceof Array && (typeof (roles) == 'number' || typeof (roles) == "string")) {
-				if (values.roles.length && values.roles.indexOf(roles) == -1)
-					return res.status(403).send('Not authorized.');
-			}
-			if (roles instanceof Array && (typeof (values.roles) == 'number' || typeof (values.roles) == "string")) {
-				if (values.role.length && roles.indexOf(values.roles) == -1)
-					return res.status(403).send('Not authorized.');
-			}
-			if (roles instanceof Array && values.roles instanceof Array) {
-				var exist = false;
-				for (var i in values.roles) {
-					for (var j in roles) {
-						if (roles[j] == values.roles[i])
-							exist = true;
+	function middleWare(dataRouting) {
+		return function(req,res,next){
+			req.zunAuthenticate=zunAuthenticate;
+			req.zunLogout=zunLogout;
+			var roles=null;
+			//Valido que la ruta esta auntenticada por session
+			if(req.session.zunAuthenticateId){
+				roles=req.session.zunAuthenticateRoles;
+				req.session.zunsession={id:req.session.zunAuthenticateId,roles:req.session.zunAuthenticateRoles};
+				if(req.method=='POST' || req.method=='PUT' || req.method=='DELETE'){
+					//Verifico que tenga el token CSRF
+					var csrf_token = req.body[zun.config.webserver.csrf.token_name] || req.query[zun.config.webserver.csrf.token_name] || req.headers[zun.config.webserver.csrf.token_name];
+					if(!csrf_token)return zun.zunHandleError({statusCode:405},req,res);
+					try {
+						_this.jsonwebtoken.verify(csrf_token,zun.config.webserver.csrf.secret);
+					} catch(err) {
+						return zun.zunHandleError({statusCode:405},req,res);
 					}
 				}
-				if (!exist)
-					return res.status(403).send('Not authorized.');
+			}	
+			//Valido que la ruta esta auntenticada por jsonwebtoken
+			var token = req.body[zun.config.webserver.jsonwebtoken.body_name] || req.query[zun.config.webserver.jsonwebtoken.get_query_name] || req.headers[zun.config.webserver.jsonwebtoken.header_http_name];
+			if(token){
+				try {
+					var decoded = _this.jsonwebtoken.verify(token,zun.config.webserver.jsonwebtoken.secret);
+					roles=decoded.roles;
+					req.session.zunsession=decoded;
+				} catch(err) {
+					return zun.zunHandleError({statusCode:403},req,res);
+				}
 			}
+			//Verifico si tiene rol
+			if (dataRouting.roles) {
+				//Si tiene roles en el routing y ademas la variable role en la session
+				if (dataRouting.roles && !roles)
+					return zun.zunHandleError({statusCode:403},req,res);
+				if (typeof (dataRouting.roles) == "string" && typeof (roles) == "string" && dataRouting.roles != roles)
+					return zun.zunHandleError({statusCode:403},req,res);
+				if (dataRouting.roles instanceof Array && (typeof (roles) == 'number' || typeof (roles) == "string")) {
+					if (dataRouting.roles.length && dataRouting.roles.indexOf(roles) == -1)
+						return zun.zunHandleError({statusCode:403},req,res);
+				}
+				if (roles instanceof Array && (typeof (dataRouting.roles) == 'number' || typeof (dataRouting.roles) == "string")) {
+					if (dataRouting.role.length && roles.indexOf(dataRouting.roles) == -1)
+						return zun.zunHandleError({statusCode:403},req,res);
+				}
+				if (roles instanceof Array && dataRouting.roles instanceof Array) {
+					var exist = false;
+					for (var i in dataRouting.roles) {
+						for (var j in roles) {
+							if (roles[j] == dataRouting.roles[i])
+								exist = true;
+						}
+					}
+					if (!exist)
+						return zun.zunHandleError({statusCode:403},req,res);
+				}
+			}
+			next();
 		}
-		if (_this.existListeners('routing')) {
-			values.req = req;
-			values.res = res;
-			zun.emit('routing', values, function () {
-				//require(_this.basedir+"/bundles/" + values.bundle + '/controller/' + values.controller)[values.fn](req,res)
-				eval('require(_this.basedir+"/bundles/' + values.bundle + '/controller/' + values.controller + '").' + values.fn + '(req,res)');
-			})
-		} else //require(_this.basedir+"/bundles/" + values.bundle + '/controller/' + values.controller)[values.fn](req,res)
-			eval('require(_this.basedir+"/bundles/' + values.bundle + '/controller/' + values.controller + '").' + values.fn + '(req,res)');
-
-
+		
 	}
 
 	//Funcion que permite authenticar a un usuario
@@ -260,6 +271,7 @@ exports.ZunKernel = function () {
 		options.roles=(options.roles)?options.roles:null;
 		switch (options.type) {
 			case 'session':{
+				console.log(options)
 				this.session.zunAuthenticateId=options.id;
 				this.session.zunAuthenticateRoles=options.roles
 				return true;
@@ -286,6 +298,10 @@ exports.ZunKernel = function () {
 				return true;
 		}
 		return false;
+	}
+
+	this.getTokenCSRF=function(){
+		return _this.jsonwebtoken.sign({}, zun.config.webserver.csrf.secret, { algorithm: 'HS256',expiresIn: zun.config.webserver.csrf.expires * 60});
 	}
 
 	function loadConfigByBundle() {
@@ -349,20 +365,55 @@ exports.ZunKernel = function () {
 			var renderDir = file;
 		else var renderDir = _this.basedir + '/bundles/' + bundle_name + '/view/' + file;
 		if (!fs.existsSync(renderDir)) {
-			zun.console("File to render not found", "error");
+			zun.console("File to render not found. Path:"+renderDir, "error");
 			return "Error!! file not found";
 		}
 		var rawTemplate=fs.readFileSync(renderDir,'utf-8');
-		return _this.render(rawTemplate,data)
-		//return _this.engine.renderFile(renderDir, data);
+		return _this.render(rawTemplate,data);
 	}
 
 	this.render = function (template, data) {
+		if(!data)data={}
+		//Agrego el token csrf
+		data.zunframework_csrf_token=_this.getTokenCSRF();
+		data.zunframework_csrf_token_name=zun.config.webserver.csrf.token_name;
+
 		if(!_this.useCustom.templateEngine)
-			return _this.swig.render(template, { locals: data });
+			return _this.swig.render(template, { locals: data,filename:Date.now().toString()});
 		else {
 			return _this.useCustom.templateEngine(template,data) 
 		}
+	}
+
+	this.zunHandleError=function(error,req,res){
+		if(zun.useCustom.handleError)
+			return zun.useCustom.handleError(error,req,res);
+		var errorDir=_this.basedir + '/node_modules/zunkernel/templates/error.html';
+		var result={codeError:'',typeError:'',stack:error.stack};
+		switch (error.statusCode) {
+			case 404:{
+				result.codeError=error.statusCode;
+				result.typeError='Page not found.'
+			}break;
+			case 403:{
+				result.codeError=error.statusCode;
+				result.typeError='Not Authorizate.'
+			}break;
+			case 405:{
+				result.codeError=error.statusCode;
+				result.typeError='Not Authorizate, invalid token CSRF'
+			}break;
+			case 500:{
+				result.codeError=error.statusCode;
+				result.typeError='Internal server error.'
+			}break;
+			default:{
+				result.codeError=500;
+				result.typeError='Internal server error.';
+			}break;
+		}
+		var template=_this.renderFile(errorDir,result);
+		res.send(template);
 	}
 
 	this.useTemplateEngine=function(fn){
@@ -377,6 +428,9 @@ exports.ZunKernel = function () {
 		_this.useCustom.express=fn;
 	}
 
+	this.handleError=function(fn) {
+		_this.useCustom.handleError=fn
+	}
 	//Funcion que evalua si existen variables en las configuraciones del bundle
 	function evaluateObject(object) {
 		for (var i in object) {
@@ -456,8 +510,13 @@ exports.ZunKernel = function () {
 						"expires":1440,
 						"algorithm":"HS256",
 						"header_http_name":"jwt_token",
-						"post_body_name":"jwt_token",
+						"body_name":"jwt_token",
 						"get_query_name":"jwt_token"
+					},
+					"csrf":{
+						"token_name":"zunframework_csrf_token",
+						"secret": "csrf_zunkernel*2018",
+						"expires": 1440
 					}
 				},
 				"bundles": [],

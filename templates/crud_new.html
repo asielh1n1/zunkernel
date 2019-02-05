@@ -1,0 +1,36 @@
+
+{% extends "./bundles/{$bundle$}/view/index.html" %}
+{% block content %}
+<div class="mt-5 col-12">
+    {% if error %}
+        <div class="alert alert-danger" role="alert">
+            <strong>Error!!</strong> {{error}}
+        </div>
+    {% endif %}
+    <div class="col-12">
+        <h2 class="text-left">New</h2>
+    </div>
+    <form class="col-12" action="{$model$}/create" method="POST">
+        <input type="hidden" name="{{zunframework_csrf_token_name}}" value="{{zunframework_csrf_token}}"/>
+        {! for item in attributes !}  
+            {! if item.name!='id' !}  
+                {! if item.type=='checkbox' !} 
+                <div class="checkbox">
+                    <label class="text-capitalize">
+                    <input name="{$item.name$}" type="checkbox"> {$item.name$}
+                    </label>
+                </div>
+                {! else !}
+                <fieldset class="form-group text-left">
+                    <label class="text-capitalize">{$item.name$}</label>
+                    <input {! if item.required !}required{! endif !}  type="{$item.type$}" name="{$item.name$}" class="form-control"  placeholder="Enter {$item.name$}">
+                    {% if false %}<small class="text-danger">Field Error.</small>{%endif%}
+                </fieldset>
+                {!endif!}
+            {!endif!}
+        {! endfor !} 
+        <button type="submit" style="float:right" class="btn btn-success">Accept</button>
+        <a class="btn btn-secondary mr-1" style="float:right" href="/{$model$}" role="button">Cancel</a> 
+    </form>
+</div>
+{% endblock %}

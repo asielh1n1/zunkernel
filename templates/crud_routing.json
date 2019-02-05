@@ -1,0 +1,44 @@
+[
+  {
+    "url": "/{{model}}",
+    "method": "get",
+    "controller":"{{model}}",
+    "fn": "{{model|capitalize}}.list",
+    "roles":""
+  },
+  {
+    "url": "/{{model}}/new",
+    "method": "get",
+    "controller":"{{model}}",
+    "fn": "{{model|capitalize}}.new",
+    "roles":""
+  },
+  {
+    "url": "/{{model}}/edit/:id",
+    "method": "get",
+    "controller":"{{model}}",
+    "fn": "{{model|capitalize}}.edit",
+    "roles":""
+  },
+  {
+    "url": "/{{model}}/create",
+    "method": "post",
+    "controller":"{{model}}",
+    "fn": "{{model|capitalize}}.create",
+    "roles":""
+  },
+  {
+    "url": "/{{model}}/update/:id",
+    "method": "post",
+    "controller":"{{model}}",
+    "fn": "{{model|capitalize}}.update",
+    "roles":""
+  },
+  {
+    "url": "/{{model}}/delete/:id",
+    "method": "get",
+    "controller":"{{model}}",
+    "fn": "{{model|capitalize}}.delete",
+    "roles":""
+  }
+]

@@ -11,7 +11,7 @@ npm install zunkernel
 ```
 zun start
 ```
-### If you put in the web browser http://localhost/myapp you will see the result. The framework creates an application in 0 to start.
+### If you put in the web browser http://localhost/ you will see the result. The framework creates an application in 0 to start.
 
 ## System files and folders:
 ```
@@ -65,6 +65,11 @@ zun start
             "header_http_name":"jwt_token",
             "post_body_name":"jwt_token",
             "get_query_name":"jwt_token"
+        },
+        "csrf":{
+            "token_name":"zunframework_csrf_token",
+            "secret": "csrf_zunkernel*2018",
+            "expires": 1440
         }
     },
     "bundles": [
@@ -371,9 +376,25 @@ function index(req,res){
 }
 ```
 
+## Custom handle express error
+```
+zun.handleError(function(error,req,res){
+	switch(error.statusCode){
+		case 403:{
+			res.status(403).json({success:false,msg:'Not Authorizate.'});
+		}break;
+		case 404:{
+			res.send(zun.myapp.render('page404.html'));
+		}break;
+		case 500:{
+			res.status(404).send('Internal server error.');
+		}break;
+	}
+})
+```
+
 
 ## Events
-* routing: Event issued by the framework when accessing a route.See examples.
 * db_connect: Event that is executed when the connection with the database is established. See examples
 
 ## Routing config by bundle
@@ -385,7 +406,6 @@ File: zunframework/bundle/bundle_name/config/routing.json
     "method": "get", //HTTP method of the call, compatible with all methods that you have in the express module(get, post, put, delete, etc...)
     "controller":"user",//File name in the controller folder
     "fn": "User.create",//The function to execute in that file. This function should be exported to be used
-    "authenticated":"",//If you want to specify that for this route the user is authenticated, the accepted values are "session" or "jsonwebtoken"
     "roles":['admin','client'] //You can specify roles by route to restrict the access to those routes. To a good performance of this procedure you must specify in the express session a variable named role with the role name. Example req.session.role = 'admin' and restrict the routes by role
 }]
 ```
@@ -636,25 +656,6 @@ proyect/bundles/myapp/view/login.html
 <div>{{data}}</div>
 ```
 ### Events
-* Routing
-```
-zun.on('routing', function (data, next) {
-    /*Object data:{
-        roles:"Roles of the route",
-        url:"Route",
-        method:"Method use, post, get , delete etc..",
-        bundle:"Bundle name",
-        controller:"Controller directory of routing",
-        fn:"Function to execute on the controller",
-        req:"Object request express",
-        res:"Object response express"
-        }
-    */
-    if(!data.req.session.user)
-        return data.res.status(405).send('Not authorized.');
-    next();//Function that allows the call to that route to continue running
-})
-```
 * DB Conecction
 ```
 zun.on('db_connect', function (error) {

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <title>Error</title>
+    <style>
+        body{
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            padding: 0px;
+            margin: 0px;
+            background-color: #9e9e9e30;
+        }
+        .code404{
+            color:#009688!important;
+        }
+        .code403{
+            color:#FF5722!important;
+        }
+        .code500{
+            color:#F44336!important;
+        }
+    </style>
+  </head>
+
+  <body class="text-center">
+    <h1 class="code{{codeError}}" style="text-align: center;font-size: 6em;margin-bottom: 0px;margin-top: 1em;">{{codeError}}</h1>
+    <h5 style="text-align: center;font-size: 1.5em;color:#455A64;">{{typeError}}</h5>
+    {% if stack %}
+        <div style="position:relative;width:60%;margin-left:20%;"><code>{{stack}}</code></div>
+    {% endif %}
+  </body>
+</html>

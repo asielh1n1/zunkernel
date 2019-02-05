@@ -1,0 +1,58 @@
+
+{% extends "./bundles/{$bundle$}/view/index.html" %}
+{% block content %}
+<div class="row mt-5">
+    <div class="col-xs-12 col-md-10 offset-md-1">
+        {% if error %}
+            <div class="alert alert-danger" role="alert">
+                <strong>Error!!</strong> {{error}}
+            </div>
+        {%endif%}
+        <div class="row">
+            <div class="col-6">
+                    <h2 class="text-left">List</h2>
+            </div>
+            <div class="col-6 text-right">
+                <a class="btn btn-success" href="/{$model$}/new" role="button">New</a>
+            </div>
+        </div>
+        
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    {! for item in attributes !}
+                    <td class="text-capitalize">{$ item.name $}</td>   
+                    {! endfor !}
+                    <td class="text-capitalize">actions</td>   
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in data %}
+                    <tr>
+                        {! for item in attributes !}
+                            <td>{{item.{$ item.name $}}}</td>   
+                        {! endfor !}
+                        <td>
+                            <div class="btn-group">
+                                <button type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    Action
+                                </button>
+                                <div class="dropdown-menu">
+                                    <a class="dropdown-item" href="/{$model$}/edit/{{item.id}}">Edit</a>
+                                    <button onclick="remove('{{item.id}}')" class="dropdown-item" type="button">Delete</button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>   
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<script>
+    function remove(id){
+        if(confirm('Want to really remove the item '+id+'?'))
+            window.location='/{$model$}/delete/'+id
+    }
+</script>
+{% endblock %}
